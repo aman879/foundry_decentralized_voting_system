@@ -4,11 +4,11 @@ pragma solidity ^0.8.19;
 
 contract VotingSystem {
     address private owner; // Store the address of the owner of this contarct
-    uint256 private totalVoters = 0;
-    uint32 private totalCandidate = 0;
+    uint256 private totalVoters;
+    uint32 private totalCandidate;
     uint32 private voteId;
     uint32 private winnerId;
-    uint256 private previousVotes = 0;
+    uint256 private previousVotes;
 
     enum VoteStatus{
         STARTED,
@@ -80,11 +80,10 @@ contract VotingSystem {
         require(bytes(_proof).length > 3 && bytes(_proof).length < 9, "Proof should be between 4 - 8 letters long");
 
         voterToVoterId[addr] = ++totalVoters;
-        votersInfo[voterToVoterId[addr]].name = _name;
-        votersInfo[voterToVoterId[addr]].addr = addr;
-
-        bytes32 proof = keccak256(abi.encodePacked(_proof, voterToVoterId[addr]));
-        votersInfo[voterToVoterId[addr]].proof = proof;
+        voters storage voter = votersInfo[totalVoters];
+        voter.name = _name;
+        voter.addr = addr;
+        voter.proof = keccak256(abi.encodePacked(_proof, totalVoters));
 
         emit registerVoter(addr, voterToVoterId[addr], _name);
 
@@ -96,14 +95,13 @@ contract VotingSystem {
         require(candidateId[_addr] == 0, "Already added");
         
         candidateId[_addr] = ++totalCandidate;
-
-        candidateInfo[candidateId[_addr]].name = _name;
-        candidateInfo[candidateId[_addr]].addr = _addr;
-        countVotes[candidateId[_addr]] = 0;
+        candidates storage candidate = candidateInfo[candidateId[_addr]];
+        candidate.name = _name;
+        candidate.addr = _addr;
 
         emit newCandidate(_addr, candidateId[_addr], _name);
         return candidateId[_addr];
-    }
+    }   
 
     function vote(uint32 _candidateId, string memory _proof) external onlyVoter onlyWhenVoteStarted{
         require(_candidateId <= totalCandidate, "Candidate doesnt found");
@@ -111,8 +109,7 @@ contract VotingSystem {
         uint256 voterId = voterToVoterId[msg.sender];
         require(votersInfo[voterId].voteIds[voteId] == address(0), "You have already voted");
 
-        bytes32 proofCheck = keccak256(abi.encodePacked(_proof, voterId));
-        require(proofCheck == votersInfo[voterId].proof, "Proof doesn't matched");
+        require(keccak256(abi.encodePacked(_proof, voterId)) == votersInfo[voterId].proof, "Proof doesn't matched");
 
         votersInfo[voterId].voteIds[voteId] = candidateInfo[_candidateId].addr;
         candidateInfo[_candidateId].votes[voteId].push(voterId);
